@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador Circuito ESP32-CAM</title>
+    <title>Evaluación ESP32-CAM IoT - App Móvil</title>
     <style>
         * {
             box-sizing: border-box;
@@ -25,7 +25,9 @@
 
         header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1200px;
         }
 
         header h1 {
@@ -34,6 +36,7 @@
             letter-spacing: 1.5px;
             text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
             margin-bottom: 5px;
+            text-transform: uppercase;
         }
 
         header p {
@@ -41,488 +44,232 @@
             font-size: 14px;
         }
 
-        .app-container {
+        .main-container {
+            display: flex;
+            gap: 40px;
             width: 100%;
-            max-width: 1100px;
+            max-width: 1200px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* =========================================
+           PANEL IZQUIERDO: HARDWARE DETALLADO
+           ========================================= */
+        .hardware-panel {
+            background: #11111a;
+            border: 2px solid #232333;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            width: 750px;
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
 
-        .circuit-wrapper {
-            width: 100%;
-            background: #11111a;
-            border: 2px solid #232333;
-            border-radius: 12px;
-            padding: 20px;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            overflow: auto; /* Para pantallas pequeñas */
-        }
-
-        /* Contenedor con aspect ratio fijo para alinear SVG y Divs perfectamente */
         .circuit-board {
             position: relative;
-            width: 1000px;
+            width: 100%;
             height: 600px;
-            margin: 0 auto;
             background-image: 
                 linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
             background-size: 20px 20px;
             border-radius: 8px;
+            border: 1px solid #1a1a24;
         }
 
-        svg.wires {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
+        /* SVG Cables */
+        svg.wires { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .wire-base { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+        .wire-trace { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: 0.2; }
+        .wire-pulse { fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
 
-        .wire-base {
-            fill: none;
-            stroke-width: 4;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
+        /* Componentes Comunes */
+        .component { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .label { position: absolute; top: -25px; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #8892b0; border: 1px solid #333; white-space: nowrap; }
+        .pin-label { font-size: 10px; color: #aaa; position: absolute; }
+
+        /* --- SENSOR PIR DETALLADO --- */
+        .pir-sensor { left: 80px; top: 220px; width: 140px; height: 180px; }
+        .pir-board { width: 120px; height: 120px; background: #2e7d32; border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.4); border: 2px solid #1b5e20; }
+        .pir-dome { width: 90px; height: 90px; background: radial-gradient(circle at 30% 30%, #ffffff, #dcdcdc 60%, #999 100%); border-radius: 50%; box-shadow: 0 5px 10px rgba(0,0,0,0.4); position: relative; z-index: 3; }
+        .pir-waves { position: absolute; width: 100px; height: 100px; border: 2px solid #00ffcc; border-radius: 50%; opacity: 0; z-index: 2; pointer-events: none; }
+        .pir-waves.active { animation: radar-wave 1s infinite ease-out; }
+        @keyframes radar-wave { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(2.5); opacity: 0; } }
         
-        .wire-trace {
-            fill: none;
-            stroke-width: 4;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            opacity: 0.2;
-        }
+        .pir-pins { display: flex; gap: 20px; margin-top: 5px; }
+        .pin-hole { width: 10px; height: 10px; background: #222; border: 2px solid #a48332; border-radius: 50%; }
 
-        .wire-pulse {
-            fill: none;
-            stroke-width: 6;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            /* La animación se controla via JS */
-        }
-
-        .component {
-            position: absolute;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .label {
-            position: absolute;
-            top: -25px;
-            background: rgba(0,0,0,0.7);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #8892b0;
-            white-space: nowrap;
-            border: 1px solid #333;
-        }
-
-        .pin-label {
-            font-size: 10px;
-            color: #aaa;
-            position: absolute;
-        }
-
-        /* --- SENSOR PIR --- */
-        .pir-sensor {
-            left: calc(15% - 70px);
-            top: calc(33.3% - 90px);
-            width: 140px;
-            height: 180px;
-        }
-
-        .pir-board {
-            width: 120px;
-            height: 120px;
-            background: #2e7d32; /* Verde PCB */
-            border-radius: 4px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.4);
-            border: 2px solid #1b5e20;
-        }
-
-        .pir-dome {
-            width: 90px;
-            height: 90px;
-            background: radial-gradient(circle at 30% 30%, #ffffff, #dcdcdc 60%, #999 100%);
-            border-radius: 50%;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.4);
-            position: relative;
-            z-index: 3;
-        }
-
-        .pir-waves {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            border: 2px solid #00ffcc;
-            border-radius: 50%;
-            opacity: 0;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        .pir-waves.active {
-            animation: radar-wave 1s infinite ease-out;
-        }
-
-        @keyframes radar-wave {
-            0% { transform: scale(0.8); opacity: 0.8; }
-            100% { transform: scale(2.5); opacity: 0; }
-        }
-
-        .pir-pins {
-            display: flex;
-            gap: 20px;
-            margin-top: 5px;
-        }
+        /* --- ESP32-CAM DETALLADO --- */
+        .esp32-cam { left: 400px; top: 150px; width: 220px; height: 300px; }
+        .esp-board { width: 180px; height: 260px; background: #151515; border-radius: 8px; position: relative; border: 2px solid #333; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; }
         
-        .pin-hole {
-            width: 10px;
-            height: 10px;
-            background: #222;
-            border: 2px solid #a48332; /* Dorado */
-            border-radius: 50%;
-        }
-
-        /* --- ESP32-CAM --- */
-        .esp32-cam {
-            left: calc(50% - 110px);
-            top: calc(41.6% - 150px);
-            width: 220px;
-            height: 300px;
-        }
-
-        .esp-board {
-            width: 180px;
-            height: 260px;
-            background: #151515;
-            border-radius: 8px;
-            position: relative;
-            border: 2px solid #333;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .esp-camera-module {
-            width: 90px;
-            height: 90px;
-            background: #0a0a0a;
-            border: 2px solid #222;
-            border-radius: 4px;
-            margin-top: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.6);
-        }
-
-        .esp-lens {
-            width: 40px;
-            height: 40px;
-            background: radial-gradient(circle at 40% 40%, #444, #000 70%);
-            border: 2px solid #111;
-            border-radius: 50%;
-            box-shadow: inset 0 0 5px rgba(255,255,255,0.2);
-            position: relative;
-        }
+        .esp-camera-module { width: 90px; height: 90px; background: #0a0a0a; border: 2px solid #222; border-radius: 4px; margin-top: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.6); }
+        .esp-lens { width: 40px; height: 40px; background: radial-gradient(circle at 40% 40%, #444, #000 70%); border: 2px solid #111; border-radius: 50%; box-shadow: inset 0 0 5px rgba(255,255,255,0.2); position: relative; }
+        .esp-lens::after { content: ''; position: absolute; top: 8px; left: 8px; width: 10px; height: 10px; background: rgba(255,255,255,0.4); border-radius: 50%; }
         
-        .esp-lens::after {
-            content: '';
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            width: 10px;
-            height: 10px;
-            background: rgba(255,255,255,0.4);
-            border-radius: 50%;
-        }
-
-        .esp-processor {
-            width: 100px;
-            height: 100px;
-            background: #222;
-            border: 1px solid #444;
-            margin-top: 20px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .esp-processor::after {
-            content: 'ESP32';
-            color: #555;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .esp-led {
-            width: 8px;
-            height: 8px;
-            background: #333;
-            border-radius: 2px;
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-        }
-
-        .esp-led.blinking {
-            animation: esp-blink 0.2s infinite alternate;
-        }
-
-        @keyframes esp-blink {
-            from { background: #333; box-shadow: none; }
-            to { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
-        }
-
-        .esp-pin-header {
-            position: absolute;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-            padding: 10px 0;
-        }
-
+        .esp-processor { width: 100px; height: 100px; background: #222; border: 1px solid #444; margin-top: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .esp-processor::after { content: 'ESP32'; color: #555; font-size: 14px; font-weight: bold; }
+        
+        .esp-pin-header { position: absolute; display: flex; flex-direction: column; gap: 18px; padding: 10px 0; }
         .esp-pin-header.left { left: 5px; top: 50px; }
-        .esp-pin-header.right { right: 5px; top: 50px; }
+        .esp-pin { width: 12px; height: 12px; background: #222; border: 2px solid #a48332; border-radius: 50%; position: relative; }
+        .pin-name { position: absolute; color: #aaa; font-size: 10px; top: -1px; left: 18px;}
 
-        .esp-pin {
-            width: 12px;
-            height: 12px;
-            background: #222;
-            border: 2px solid #a48332;
-            border-radius: 50%;
-            position: relative;
-        }
+        /* Emisor Wi-Fi (Hardware) - Tono Azul Original */
+        .wifi-emitter { position: absolute; top: -45px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; opacity: 0; }
+        .wifi-emitter.active { opacity: 1; }
+        .wifi-wave { border-top: 3px solid #00b4d8; border-radius: 50%; box-shadow: 0 -2px 5px rgba(0, 180, 216, 0.5); }
+        .wifi-wave.w1 { width: 40px; height: 20px; animation: wifi-anim-hw 1s infinite 0.4s; }
+        .wifi-wave.w2 { width: 25px; height: 12px; animation: wifi-anim-hw 1s infinite 0.2s; }
+        .wifi-wave.w3 { width: 10px; height: 5px; background: #00b4d8; border-radius: 50%; border: none; animation: wifi-anim-hw 1s infinite 0s;}
+        @keyframes wifi-anim-hw { 0% { opacity: 0; } 50% { opacity: 1; box-shadow: 0 -5px 15px rgba(0, 180, 216, 1); } 100% { opacity: 0; } }
 
-        /* Nombres pines ESP32 */
-        .pin-name {
-            position: absolute;
-            color: #aaa;
-            font-size: 10px;
-            top: -1px;
-        }
-        .esp-pin-header.left .pin-name { left: 18px; }
-        .esp-pin-header.right .pin-name { right: 18px; }
-
-        /* --- RESISTENCIA --- */
-        .resistor {
-            left: calc(75% - 40px);
-            top: calc(41.6% - 12.5px);
-            width: 80px;
-            height: 25px;
-            background: linear-gradient(90deg, 
-                #e3c498 0%, #e3c498 15%, 
-                #ff0000 15%, #ff0000 25%, /* Rojo */
-                #e3c498 25%, #e3c498 40%, 
-                #ff0000 40%, #ff0000 50%, /* Rojo */
-                #e3c498 50%, #e3c498 65%, 
-                #5d4037 65%, #5d4037 75%, /* Marrón */
-                #e3c498 75%, #e3c498 85%, 
-                #ffd700 85%, #ffd700 95%, /* Dorado */
-                #e3c498 95%);
-            border-radius: 12px;
-            border: 1px solid #a67c52;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-
-        /* --- LED ROJO --- */
-        .led-red {
-            left: calc(90% - 30px);
-            top: calc(33.3% - 50px);
-            width: 60px;
-            height: 100px;
-        }
-
-        .led-bulb {
-            width: 40px;
-            height: 60px;
-            background: rgba(180, 20, 20, 0.4);
-            border: 2px solid #a00;
-            border-radius: 20px 20px 5px 5px;
-            position: relative;
-            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.5), inset 5px 5px 15px rgba(255,255,255,0.2);
-            transition: all 0.3s ease;
-        }
+        /* Consola de Control */
+        .controls-panel { display: flex; justify-content: space-between; align-items: center; background: #0a0a0f; border: 1px solid #232333; border-radius: 8px; padding: 15px 20px; gap: 20px; }
+        .status-screen { background: #000; border: 1px solid #333; border-radius: 6px; padding: 10px 15px; flex-grow: 1; font-family: 'Courier New', monospace; }
+        .status-title { color: #666; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
+        .status-text { color: #00ffcc; font-size: 14px; font-weight: bold; }
         
-        .led-bulb::before {
-            content: '';
+        .btn-simular { background: linear-gradient(135deg, #00b4d8, #0077b6); color: white; border: none; padding: 12px 25px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 119, 182, 0.4); text-transform: uppercase; transition: all 0.2s; }
+        .btn-simular:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 119, 182, 0.6); }
+        .btn-simular:disabled { background: #333; color: #777; cursor: not-allowed; box-shadow: none; transform: none; }
+
+
+        /* =========================================
+           PANEL DERECHO: APP MÓVIL (Smartphone UI)
+           ========================================= */
+        .smartphone-frame {
+            width: 340px;
+            height: 684px; /* Ajuste para incluir todo el contenido móvil */
+            background: #111;
+            border-radius: 35px;
+            border: 12px solid #222;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 0 10px rgba(255,255,255,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Notch del teléfono */
+        .notch {
             position: absolute;
-            bottom: -5px;
-            left: -2px;
-            right: -2px;
-            height: 10px;
-            background: rgba(180, 20, 20, 0.6);
-            border: 2px solid #a00;
-            border-radius: 2px;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 120px; height: 25px;
+            background: #222;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 10;
         }
 
-        .led-bulb.on {
-            background: #ff1a1a;
-            border-color: #ff4d4d;
-            box-shadow: 0 0 30px 10px rgba(255, 0, 0, 0.8), inset 0 0 10px rgba(255,255,255,0.8);
-        }
-
-        .led-legs {
+        /* Pantalla de la App */
+        .app-screen {
+            flex: 1;
+            background: #000000;
+            padding: 35px 15px 15px 15px;
             display: flex;
-            gap: 10px;
-            margin-top: 5px;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
         }
 
-        .led-leg {
-            width: 4px;
-            height: 30px;
-            background: linear-gradient(90deg, #999, #eee, #999);
-        }
-        .led-leg.long { height: 40px; } /* Ánodo */
+        /* UI App: Header */
+        .app-header { text-align: center; margin-bottom: 5px; }
+        .app-title { font-size: 18px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px;}
+        .app-title .red-text { color: #ff3333; }
+        .app-title .blue-box { background: #0055ff; color: white; padding: 1px 4px; border-radius: 2px;} /* Azul de la imagen para el texto */
+        .app-subtitle { color: #555; font-size: 10px; margin-top: 3px; }
+        .app-subtitle span { color: #0055ff; }
 
-        .controls-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #11111a;
-            border: 2px solid #232333;
-            border-radius: 12px;
-            padding: 20px 30px;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
+        /* UI App: Tarjeta Estado Superior */
+        .app-status-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .app-status-left { display: flex; align-items: center; gap: 8px; }
+        .ui-dot { width: 10px; height: 10px; border-radius: 50%; background: #00e676; transition: all 0.3s; }
+        .ui-dot.alert { background: #ff1a1a; box-shadow: 0 0 8px #ff1a1a; }
+        .ui-status-text { display: flex; flex-direction: column; }
+        .ui-status-main { font-size: 12px; font-weight: bold; color: #00e676; transition: color 0.3s;}
+        .ui-status-main.alert { color: #ff1a1a; }
+        .ui-status-sub { font-size: 9px; color: #fff; }
+        .ui-clock { color: #777; font-size: 10px; font-family: monospace; }
 
-        .status-screen {
-            background: #050505;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 15px 25px;
-            min-width: 300px;
-            flex-grow: 1;
-            font-family: 'Courier New', Courier, monospace;
-        }
+        /* UI App: Feed de Cámara */
+        .app-cam-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .app-cam-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a1a; }
+        .app-cam-title { font-size: 11px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px;}
+        .app-live-badge { background: #ff1a1a; color: white; font-size: 8px; font-weight: bold; padding: 2px 5px; border-radius: 3px; display: flex; align-items: center; gap: 4px; opacity: 0.5;}
+        .app-live-badge.active { opacity: 1; }
+        .app-live-badge.active::before { content: ''; width: 4px; height: 4px; background: white; border-radius: 50%; animation: pulse-dot 1s infinite;}
+        
+        .app-video-feed { width: 100%; height: 200px; background: #050505; position: relative; }
+        .app-video-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.3; transition: opacity 0.3s; filter: grayscale(50%); }
+        .app-video-feed.active .app-video-img { opacity: 1; filter: grayscale(0%); }
+        .app-cam-time { position: absolute; bottom: 8px; left: 8px; color: rgba(255,255,255,0.9); font-family: monospace; font-size: 10px; background: rgba(0,0,0,0.6); padding: 2px 4px; }
 
-        .status-title {
-            color: #666;
-            font-size: 12px;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
+        /* UI App: Banner Central (Rojo) */
+        .app-alert-banner { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; padding: 15px 10px; text-align: center; transition: all 0.3s ease; }
+        .app-alert-banner.danger { background: rgba(100, 0, 0, 0.4); border-color: #ff1a1a; box-shadow: inset 0 0 15px rgba(255, 26, 26, 0.3); }
+        .app-alert-h1 { font-size: 14px; font-weight: bold; color: #00e676; margin-bottom: 4px; transition: color 0.3s;}
+        .app-alert-banner.danger .app-alert-h1 { color: #ffffff; }
+        .app-alert-p { font-size: 10px; color: #aaa; margin-bottom: 6px;}
+        .app-alert-foco { font-size: 9px; font-weight: bold; color: #777; transition: color 0.3s;}
+        .app-alert-banner.danger .app-alert-foco { color: #ff1a1a; }
 
-        .status-text {
-            color: #888;
-            font-size: 18px;
-            font-weight: bold;
-            transition: color 0.3s;
-        }
-
-        .btn-simular {
-            background: linear-gradient(135deg, #00b4d8, #0077b6);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 119, 182, 0.4);
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .btn-simular:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 119, 182, 0.6);
-            background: linear-gradient(135deg, #00b4d8, #0096c7);
-        }
-
-        .btn-simular:active {
-            transform: translateY(1px);
-            box-shadow: 0 2px 10px rgba(0, 119, 182, 0.4);
-        }
-
-        .btn-simular:disabled {
-            background: #333;
-            color: #777;
-            cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
-        }
+        /* UI App: Tarjetas Inferiores (Grid) */
+        .app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .app-grid-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; padding: 10px 5px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .app-icon { font-size: 18px; }
+        .app-card-title { font-size: 10px; font-weight: bold; color: #fff; }
+        .app-card-sub { font-size: 8px; color: #777; }
+        
+        .ui-foco-dot { width: 14px; height: 14px; border-radius: 50%; background: #333; transition: all 0.3s; margin-bottom: 2px;}
+        .ui-foco-dot.on { background: #ff1a1a; box-shadow: 0 0 10px #ff1a1a; }
+        .ui-foco-text { font-size: 8px; color: #777; transition: color 0.3s;}
+        .ui-foco-text.on { color: #ff1a1a; font-weight: bold; }
 
     </style>
 </head>
 <body>
 
     <header>
-        <h1>SISTEMA DE SEGURIDAD ESP32-CAM</h1>
-        <p>Simulación interactiva de circuito con Sensor PIR y Alarma Visual</p>
+        <h1>SISTEMA DE SEGURIDAD ESP32-CAM IOT</h1>
+        <p>Integración de Hardware Físico y App Móvil</p>
     </header>
 
-    <div class="app-container">
+    <div class="main-container">
         
-        <div class="circuit-wrapper">
-            <div class="circuit-board" id="board">
+        <!-- =========================================
+             PANEL IZQUIERDO: HARDWARE DETALLADO 
+             ========================================= -->
+        <div class="hardware-panel">
+            <div class="circuit-board">
                 
-                <!-- SVG PARA LOS CABLES -->
-                <!-- viewBox sincronizado con las dimensiones del contenedor (1000x600) -->
-                <svg class="wires" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg">
-                    
+                <svg class="wires" viewBox="0 0 750 600" xmlns="http://www.w3.org/2000/svg">
                     <!-- Cables Base (Gris Oscuro) -->
-                    <!-- VCC (Rojo) PIR(120, 290) a ESP 5V(390, 160) -->
-                    <path d="M 120 290 L 120 400 L 350 400 L 350 160 L 390 160" class="wire-base" stroke="#333"/>
-                    <!-- OUT (Amarillo) PIR(150, 290) a ESP IO13(390, 220) -->
-                    <path d="M 150 290 L 150 420 L 330 420 L 330 220 L 390 220" class="wire-base" stroke="#333"/>
-                    <!-- GND (Negro 1) PIR(180, 290) a ESP GND(390, 190) -->
-                    <path d="M 180 290 L 180 440 L 310 440 L 310 190 L 390 190" class="wire-base" stroke="#333"/>
-                    
-                    <!-- IO12 (Naranja) ESP IO12(390, 250) a Resistor(710, 250) -->
-                    <path d="M 390 250 L 290 250 L 290 480 L 680 480 L 680 250 L 710 250" class="wire-base" stroke="#333"/>
-                    <!-- Resistor a LED Anodo(885, 250) -->
-                    <path d="M 790 250 L 885 250" class="wire-base" stroke="#333"/>
-                    <!-- LED Catodo(915, 250) a ESP GND(610, 340) -->
-                    <path d="M 915 250 L 915 340 L 610 340" class="wire-base" stroke="#333"/>
-
+                    <!-- VCC (Rojo) PIR a ESP 5V -->
+                    <path d="M 120 400 L 120 500 L 360 500 L 360 210 L 405 210" class="wire-base" stroke="#333"/>
+                    <!-- OUT (Amarillo) PIR a ESP IO13 -->
+                    <path d="M 150 400 L 150 520 L 340 520 L 340 270 L 405 270" class="wire-base" stroke="#333"/>
+                    <!-- GND (Gris) PIR a ESP GND -->
+                    <path d="M 180 400 L 180 540 L 320 540 L 320 240 L 405 240" class="wire-base" stroke="#333"/>
 
                     <!-- Cables Trazado (Color tenue) -->
-                    <path d="M 120 290 L 120 400 L 350 400 L 350 160 L 390 160" class="wire-trace" stroke="#ff3333"/>
-                    <path d="M 150 290 L 150 420 L 330 420 L 330 220 L 390 220" class="wire-trace" stroke="#ffeb3b"/>
-                    <path d="M 180 290 L 180 440 L 310 440 L 310 190 L 390 190" class="wire-trace" stroke="#ffffff"/> <!-- Blanco para resaltar GND negro -->
-                    
-                    <path d="M 390 250 L 290 250 L 290 480 L 680 480 L 680 250 L 710 250" class="wire-trace" stroke="#ff9800"/>
-                    <path d="M 790 250 L 885 250" class="wire-trace" stroke="#ff9800"/>
-                    <path d="M 915 250 L 915 340 L 610 340" class="wire-trace" stroke="#ffffff"/>
+                    <path d="M 120 400 L 120 500 L 360 500 L 360 210 L 405 210" class="wire-trace" stroke="#ff3333"/>
+                    <path d="M 150 400 L 150 520 L 340 520 L 340 270 L 405 270" class="wire-trace" stroke="#ffeb3b"/>
+                    <path d="M 180 400 L 180 540 L 320 540 L 320 240 L 405 240" class="wire-trace" stroke="#ffffff"/> 
 
-
-                    <!-- Cables Animados (Pulsos) -->
-                    <!-- Pulso del Sensor al ESP (Ruta Amarilla) -->
-                    <path id="pulse-sensor-esp" d="M 150 290 L 150 420 L 330 420 L 330 220 L 390 220" class="wire-pulse" stroke="#ffff00" />
-                    
-                    <!-- Pulso del ESP al LED (Ruta Naranja ESP -> Resistor) -->
-                    <path id="pulse-esp-res" d="M 390 250 L 290 250 L 290 480 L 680 480 L 680 250 L 710 250" class="wire-pulse" stroke="#ffaa00" />
-                    
-                    <!-- Pulso del Resistor al LED (Ruta Naranja Resistor -> LED) -->
-                    <path id="pulse-res-led" d="M 790 250 L 885 250" class="wire-pulse" stroke="#ffaa00" />
-
+                    <!-- Pulso Animado (Señal del PIR al ESP32) -->
+                    <path id="pulse-sensor-esp" d="M 150 400 L 150 520 L 340 520 L 340 270 L 405 270" class="wire-pulse" stroke="#ffff00" style="opacity:0;" />
                 </svg>
 
-                <!-- COMPONENTES HTML SOBRE EL SVG -->
-
+                <!-- Sensor PIR -->
                 <div class="component pir-sensor">
                     <div class="label">PIR HC-SR501</div>
-                    <div class="pir-waves" id="pir-waves"></div>
+                    <div class="pir-waves" id="hw-pir-waves"></div>
                     <div class="pir-board">
                         <div class="pir-dome"></div>
                     </div>
@@ -533,19 +280,20 @@
                     </div>
                 </div>
 
+                <!-- ESP32-CAM -->
                 <div class="component esp32-cam">
                     <div class="label">ESP32-CAM</div>
+                    
+                    <div class="wifi-emitter" id="hw-wifi">
+                        <div class="wifi-wave w1"></div>
+                        <div class="wifi-wave w2"></div>
+                        <div class="wifi-wave w3"></div>
+                    </div>
+
                     <div class="esp-board">
-                        
-                        <div class="esp-camera-module">
-                            <div class="esp-lens"></div>
-                        </div>
-                        
+                        <div class="esp-camera-module"><div class="esp-lens"></div></div>
                         <div class="esp-processor"></div>
                         
-                        <div class="esp-led" id="esp-led"></div>
-
-                        <!-- Pines Izquierda -->
                         <div class="esp-pin-header left">
                             <div class="esp-pin"><span class="pin-name">5V</span></div>
                             <div class="esp-pin"><span class="pin-name">GND</span></div>
@@ -553,40 +301,90 @@
                             <div class="esp-pin"><span class="pin-name">IO12</span></div>
                             <div class="esp-pin"><span class="pin-name">IO2</span></div>
                         </div>
-
-                        <!-- Pines Derecha (Solo mostramos el GND conectado para simplificar) -->
-                        <div class="esp-pin-header right" style="top: 230px;">
-                            <div class="esp-pin"><span class="pin-name">GND</span></div>
-                        </div>
-
                     </div>
                 </div>
+            </div>
 
-                <div class="component resistor">
-                    <div class="label" style="top: -20px; font-size: 10px;">220 Ω</div>
+            <!-- Botonera Hardware -->
+            <div class="controls-panel">
+                <div class="status-screen">
+                    <div class="status-title">Consola de Depuración >_</div>
+                    <div class="status-text" id="hw-log">Sistema en espera...</div>
                 </div>
-
-                <div class="component led-red">
-                    <div class="label" style="top: -35px">Foco LED</div>
-                    <div class="led-bulb" id="red-led"></div>
-                    <div class="led-legs">
-                        <div class="led-leg long"></div> <!-- Ánodo (Positivo) -->
-                        <div class="led-leg"></div>      <!-- Cátodo (Negativo) -->
-                    </div>
-                </div>
-
+                <button class="btn-simular" id="btn-simular">
+                    Simular Detección
+                </button>
             </div>
         </div>
 
-        <div class="controls-panel">
-            <div class="status-screen">
-                <div class="status-title">Log del Sistema >_</div>
-                <div class="status-text" id="status-text">Estado: Reposo</div>
-            </div>
+        <!-- =========================================
+             PANEL DERECHO: SMARTPHONE APP (UI)
+             ========================================= -->
+        <div class="smartphone-frame">
+            <div class="notch"></div>
             
-            <button class="btn-simular" id="btn-simular">
-                Simular Movimiento
-            </button>
+            <div class="app-screen">
+                
+                <!-- App Header -->
+                <div class="app-header">
+                    <div class="app-title">
+                        🔴 <span class="red-text">SISTEMA DE SEGUR</span><span class="blue-box">IDAD</span>
+                    </div>
+                    <div class="app-subtitle">Monitoreo mediante <span>ESP32-CAM</span></div>
+                </div>
+
+                <!-- Top Status Bar -->
+                <div class="app-status-card">
+                    <div class="app-status-left">
+                        <div class="ui-dot" id="ui-dot"></div>
+                        <div class="ui-status-text">
+                            <span class="ui-status-main" id="ui-main-text">SISTEMA EN REPOSO</span>
+                            <span class="ui-status-sub">Sensor PIR conectado</span>
+                        </div>
+                    </div>
+                    <div class="ui-clock" id="app-clock">10:42:59</div>
+                </div>
+
+                <!-- Camera Feed -->
+                <div class="app-cam-card">
+                    <div class="app-cam-header">
+                        <span class="app-cam-title">📷 Cámara de seguridad</span>
+                        <span class="app-live-badge" id="ui-live-badge">• EN VIVO</span>
+                    </div>
+                    <div class="app-video-feed" id="ui-video">
+                        <!-- Imagen de la cámara simulada -->
+                        <img src="https://images.unsplash.com/photo-1558036117-15d82a90b9b1?auto=format&fit=crop&w=600&q=80" class="app-video-img" alt="Feed">
+                        <div class="app-cam-time" id="app-cam-time">15-10-2023 16:36:46</div>
+                    </div>
+                </div>
+
+                <!-- Alert Banner -->
+                <div class="app-alert-banner" id="ui-banner">
+                    <div class="app-alert-h1" id="ui-banner-title">SISTEMA SEGURO</div>
+                    <div class="app-alert-p" id="ui-banner-desc">No se detecta movimiento en el perímetro</div>
+                    <div class="app-alert-foco" id="ui-banner-foco">FOCO ROJO APAGADO</div>
+                </div>
+
+                <!-- Bottom Cards Grid -->
+                <div class="app-grid">
+                    <div class="app-grid-card">
+                        <div class="app-icon">📷</div>
+                        <div class="app-card-title">Cámara</div>
+                        <div class="app-card-sub">ESP32-CAM</div>
+                    </div>
+                    <div class="app-grid-card">
+                        <div class="app-icon">🎯</div>
+                        <div class="app-card-title">Sensor</div>
+                        <div class="app-card-sub">PIR HC-SR501</div>
+                    </div>
+                    <div class="app-grid-card">
+                        <div class="ui-foco-dot" id="ui-foco-dot"></div>
+                        <div class="app-card-title">Alarma</div>
+                        <div class="ui-foco-text" id="ui-foco-text">Foco apagado</div>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
     </div>
@@ -594,103 +392,122 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             
-            // Referencias a elementos DOM
+            // --- ELEMENTOS HARDWARE ---
             const btnSimular = document.getElementById("btn-simular");
-            const statusText = document.getElementById("status-text");
-            const pirWaves = document.getElementById("pir-waves");
-            const espLed = document.getElementById("esp-led");
-            const redLed = document.getElementById("red-led");
+            const hwLog = document.getElementById("hw-log");
+            const hwPirWaves = document.getElementById("hw-pir-waves");
+            const pulseLine = document.getElementById("pulse-sensor-esp");
+            const hwWifi = document.getElementById("hw-wifi");
 
-            // Referencias a los trazos SVG para el pulso
-            const pulseSensorEsp = document.getElementById("pulse-sensor-esp");
-            const pulseEspRes = document.getElementById("pulse-esp-res");
-            const pulseResLed = document.getElementById("pulse-res-led");
+            // --- ELEMENTOS APP MÓVIL ---
+            const uiDot = document.getElementById("ui-dot");
+            const uiMainText = document.getElementById("ui-main-text");
+            const uiLiveBadge = document.getElementById("ui-live-badge");
+            const uiVideo = document.getElementById("ui-video");
+            const uiBanner = document.getElementById("ui-banner");
+            const uiBannerTitle = document.getElementById("ui-banner-title");
+            const uiBannerDesc = document.getElementById("ui-banner-desc");
+            const uiBannerFoco = document.getElementById("ui-banner-foco");
+            const uiFocoDot = document.getElementById("ui-foco-dot");
+            const uiFocoText = document.getElementById("ui-foco-text");
+            const appClock = document.getElementById("app-clock");
+            const appCamTime = document.getElementById("app-cam-time");
 
-            // Función para inicializar un cable para la animación de pulso
-            function setupPulse(pathElement, pulseLength) {
-                const length = pathElement.getTotalLength();
-                // strokeDasharray = [longitud del pulso, espacio vacío restante]
-                pathElement.style.strokeDasharray = `${pulseLength} ${length}`;
-                // Iniciamos empujando el pulso completamente fuera de la ruta
-                pathElement.style.strokeDashoffset = length;
-                return length;
-            }
+            // Configurar pulso SVG
+            const length = pulseLine.getTotalLength();
+            pulseLine.style.strokeDasharray = `50 ${length}`;
+            pulseLine.style.strokeDashoffset = length;
 
-            // Configuramos los pulsos (tamaño del pulso de luz = 40px)
-            const lenSensorEsp = setupPulse(pulseSensorEsp, 40);
-            const lenEspRes = setupPulse(pulseEspRes, 40);
-            const lenResLed = setupPulse(pulseResLed, 40);
-
-            // Función auxiliar para pausas (promesas)
             const delay = ms => new Promise(res => setTimeout(res, ms));
 
-            // Función principal de la simulación
+            // Reloj en tiempo real para la App
+            setInterval(() => {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('es-ES', { hour12: false });
+                appClock.innerText = timeStr;
+                const dateStr = now.toLocaleDateString('es-ES').replace(/\//g, '-');
+                appCamTime.innerText = `${dateStr} ${timeStr}`;
+            }, 1000);
+
             async function iniciarSimulacion() {
-                // 1. Bloquear botón
                 btnSimular.disabled = true;
                 
-                // --- FASE 1: Detección ---
-                statusText.innerText = "Estado: Movimiento detectado [PIR HIGH]";
-                statusText.style.color = "#ffeb3b";
-                pirWaves.classList.add("active");
+                // === FASE 1: HARDWARE FÍSICO ===
+                hwLog.innerText = "[PIR] Movimiento detectado (HIGH)";
+                hwLog.style.color = "#ffeb3b";
+                hwPirWaves.classList.add("active");
                 
-                await delay(800); // Sensor activo un momento
+                await delay(800);
                 
-                // --- FASE 2: Envío de señal al ESP32 ---
-                pulseSensorEsp.style.transition = "stroke-dashoffset 0.8s linear";
-                pulseSensorEsp.style.strokeDashoffset = "0"; // Mueve el pulso
+                // Señal viaja por el cable
+                hwLog.innerText = "[CABLE] Transmitiendo pulso a ESP32 GPIO13...";
+                pulseLine.style.opacity = "1";
+                pulseLine.style.transition = "stroke-dashoffset 0.6s linear";
+                pulseLine.style.strokeDashoffset = "0";
                 
-                await delay(800); // Tiempo que tarda en llegar
+                await delay(700);
                 
-                // --- FASE 3: Procesamiento en ESP32 ---
-                statusText.innerText = "Estado: Procesando señal (GPIO 13) ...";
-                statusText.style.color = "#00e676";
-                espLed.classList.add("blinking"); // Led interno parpadea
+                // ESP32 emite Wi-Fi
+                hwLog.innerText = "[ESP32] Enviando alerta vía Wi-Fi (HTTP POST)...";
+                hwLog.style.color = "#00b4d8";
+                hwWifi.classList.add("active");
                 
-                await delay(1200); // Tiempo de procesamiento
-                
-                // --- FASE 4: Envío de señal al LED ---
-                statusText.innerText = "Estado: Activando Alarma (GPIO 12 HIGH) ...";
-                pulseEspRes.style.transition = "stroke-dashoffset 0.6s linear";
-                pulseEspRes.style.strokeDashoffset = "0";
-                
-                await delay(600); // Llega a la resistencia
-                
-                pulseResLed.style.transition = "stroke-dashoffset 0.2s linear";
-                pulseResLed.style.strokeDashoffset = "0";
-                
-                await delay(200); // Llega al LED
-                
-                // --- FASE 5: Alarma encendida ---
-                statusText.innerText = "Estado: Alarma Activada 🚨";
-                statusText.style.color = "#ff1744";
-                redLed.classList.add("on");
-                espLed.classList.remove("blinking");
-                pirWaves.classList.remove("active");
+                await delay(1200); 
 
-                // Mantener encendido por 4 segundos
-                await delay(4000);
+                // === FASE 2: RECEPCIÓN EN APP MÓVIL ===
+                hwLog.innerText = "[APP] Alerta recibida exitosamente.";
+                hwLog.style.color = "#00ffcc";
 
-                // --- FASE 6: Reseteo a Reposo ---
-                statusText.innerText = "Estado: Reposo";
-                statusText.style.color = "#888";
-                redLed.classList.remove("on");
+                // Cambios visuales en la App (Idéntico a tu imagen)
+                uiDot.classList.add("alert");
+                uiMainText.classList.add("alert");
+                uiMainText.innerText = "OBJETO DETECTADO";
                 
-                // Resetear las líneas de pulso (sin transición para que no se vea retroceder)
-                pulseSensorEsp.style.transition = "none";
-                pulseSensorEsp.style.strokeDashoffset = lenSensorEsp;
+                uiLiveBadge.classList.add("active");
+                uiVideo.classList.add("active");
                 
-                pulseEspRes.style.transition = "none";
-                pulseEspRes.style.strokeDashoffset = lenEspRes;
+                uiBanner.classList.add("danger");
+                uiBannerTitle.innerText = "⚠ OBJETO DETECTADO";
+                uiBannerDesc.innerText = "Se detectó movimiento delante de la cámara";
+                uiBannerFoco.innerText = "🔴 FOCO ROJO ENCENDIDO";
                 
-                pulseResLed.style.transition = "none";
-                pulseResLed.style.strokeDashoffset = lenResLed;
+                uiFocoDot.classList.add("on");
+                uiFocoText.classList.add("on");
+                uiFocoText.innerText = "🔴 Foco encendido";
 
-                // Desbloquear botón
+                hwPirWaves.classList.remove("active");
+
+                // Mantener estado de alerta
+                await delay(5000);
+
+                // === FASE 3: RESTAURAR SISTEMA ===
+                hwLog.innerText = "Sistema en espera...";
+                hwLog.style.color = "#00ffcc";
+                
+                hwWifi.classList.remove("active");
+                pulseLine.style.transition = "none";
+                pulseLine.style.strokeDashoffset = length;
+                pulseLine.style.opacity = "0";
+
+                uiDot.classList.remove("alert");
+                uiMainText.classList.remove("alert");
+                uiMainText.innerText = "SISTEMA EN REPOSO";
+                
+                uiLiveBadge.classList.remove("active");
+                uiVideo.classList.remove("active");
+                
+                uiBanner.classList.remove("danger");
+                uiBannerTitle.innerText = "SISTEMA SEGURO";
+                uiBannerDesc.innerText = "No se detecta movimiento en el perímetro";
+                uiBannerFoco.innerText = "FOCO ROJO APAGADO";
+                
+                uiFocoDot.classList.remove("on");
+                uiFocoText.classList.remove("on");
+                uiFocoText.innerText = "Foco apagado";
+
                 btnSimular.disabled = false;
             }
 
-            // Event listener
             btnSimular.addEventListener("click", iniciarSimulacion);
         });
     </script>
